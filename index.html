@@ -6,10 +6,11 @@
 <meta name="theme-color" content="#2F6BFF">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Mi Gasto">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
 <title>Mi Gasto</title>
 <style>body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -217,6 +218,10 @@ const icoBg=t=>(t.type==='out'||t.type==='in')?catOf(t.cat).bg:TYPE[t.type].bg;
 const DEFAULTS={name:'',salary:1500,goal:500,payDay:30,initialBalance:0,fixed:[],setupDone:false};
 let S={settings:Object.assign({},DEFAULTS),months:{}};
 let tab='inicio', viewMonth=mkey(todayISO()), movFilter='all';
+const isIOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const isStandalone=()=>window.navigator.standalone===true||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
+let iosTipHidden=false;try{iosTipHidden=localStorage.getItem('migasto_iostip')==='1'}catch(e){}
+const showIosTip=()=>isIOS&&!isStandalone()&&!iosTipHidden&&!(window.claude&&window.claude.use);
 const LS='migasto_v1';
 function loadLocal(){try{const r=localStorage.getItem(LS);if(r){const o=JSON.parse(r);S.months=o.months||{};S.settings=Object.assign({},DEFAULTS,o.settings||{})}}catch(e){}}
 function saveLocal(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}}
@@ -315,6 +320,7 @@ function setupCard(){const s=S.settings;return '<section class="card"><h2>Empiez
 function viewInicio(){
   if(booting&&!allTx().length)return '<section class="card"><h2>Cargando tus datos…</h2><p class="muted small" style="margin:0">Buscando tu información guardada en la nube.</p></section>';
   const o=overview(),pc=pace(),s=S.settings;let h='';
+  if(showIosTip())h+='<div class="banner info" style="align-items:flex-start"><span class="small"><b>Para instalarla en tu iPhone:</b> ábrela en Safari, toca el botón <b>Compartir</b> (el cuadrado con la flecha hacia arriba) y elige <b>Agregar a pantalla de inicio</b>. Luego usa siempre el ícono instalado: ahí quedan guardados tus datos.</span><button class="btn sm ghost" id="iosTipClose" style="flex:none">Entendido</button></div>';
   if(hasDemo())h+='<div class="banner">Estás viendo datos de ejemplo.<button class="btn sm danger" id="clearDemo">Borrar ejemplos</button></div>';
   if(!s.setupDone&&!hasDemo()){h+=setupCard();if(!allTx().length)return h+'<section class="card flat"><h2>Qué vas a ver aquí</h2><p class="small muted" style="margin:0">Un solo número: cuánto te queda para gastar, con tu meta de inversión ya apartada y tus gastos fijos descontados. Debajo, cuánto puedes gastar por día hasta tu próximo sueldo, tus préstamos por cobrar y tus últimos movimientos.</p></section>'}
   const paceTxt={good:'Vas bien',warn:'Ojo con el ritmo',bad:'Gastando de más',none:'Sin referencia'}[pc.level];
@@ -443,6 +449,7 @@ $('#view').addEventListener('click',e=>{const b=e.target.closest('button,label')
   if(d.delfixed){S.settings.fixed=(S.settings.fixed||[]).filter(f=>f.id!==d.delfixed);commitSettings();render();return}
   if(b.id==='fx-add'){const name=$('#fx-name').value.trim(),amount=parseAmount($('#fx-amt').value),cat=$('#fx-cat').value;if(!name||!(amount>0)){toast('Pon nombre y monto');return}S.settings.fixed=(S.settings.fixed||[]).concat([{id:uid(),name,amount,cat}]);commitSettings();render();toast('Gasto fijo agregado');return}
   if(b.id==='clearDemo'){clearDemo();return}
+  if(b.id==='iosTipClose'){iosTipHidden=true;try{localStorage.setItem('migasto_iostip','1')}catch(e){}render();return}
   if(b.id==='su-demo'){loadDemo();return}
   if(b.id==='su-save'){const name=$('#su-name').value.trim(),bal=parseAmount($('#su-bal').value),sal=parseAmount($('#su-sal').value),goal=parseAmount($('#su-goal').value),pay=parseInt($('#su-pay').value,10);S.settings=Object.assign({},S.settings,{name,initialBalance:bal,salary:sal||0,goal:goal||0,payDay:(pay>=1&&pay<=31)?pay:30,setupDone:true});commitSettings();render();toast('Listo. Registra tu primer movimiento con el botón +');return}
   if(b.id==='exp-json'){download('mi-gasto-respaldo-'+todayISO()+'.json',exportJSON(),$('#exp-area'));return}
